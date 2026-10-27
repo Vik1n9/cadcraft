@@ -413,14 +413,18 @@ pub fn install_fonts(ctx: &egui::Context, language: &str) {
 /// face, because file, layout and layer names can be Japanese or Chinese whatever the interface
 /// shows (#513), with the interface's own face leading. A sans-serif face reads best, and a
 /// Chinese interface takes the face with its own glyphs ahead of a Japanese one — a Japanese face
-/// shares most ideographs but lacks the simplified-only ones (图 园 测), which would be tofu.
+/// shares most ideographs but lacks the simplified-only ones (图 园 测), and a Traditional
+/// interface wants the Traditional forms (麵 後 骨) rather than the Simplified face's.
 /// العربية adds its Arabic face after those, egui's bundled faces carrying no Arabic glyphs.
 fn embedded_ui_faces<'a>(faces: &[&'a cadcraft_fonts::CraftFont], language: &str) -> Vec<&'a cadcraft_fonts::CraftFont> {
     let cjk = |f: &&cadcraft_fonts::CraftFont| f.style == "Regular" && f.scripts.iter().any(|s| matches!(*s, "Jpan" | "Hans" | "Hant"));
     let mut out: Vec<_> = faces.iter().copied().filter(cjk).collect();
     out.sort_by_key(|f| !f.family.contains("Gothic") && !f.family.contains("Sans"));
     if language.starts_with("zh") {
-        out.sort_by_key(|f| !f.scripts.contains(&"Hans"));
+        // A Traditional Chinese interface wants the Traditional face first; a Simplified one the
+        // Simplified face (the drop order is stable, so the rest keeps its order).
+        let own = if language == "zh-TW" { "Hant" } else { "Hans" };
+        out.sort_by_key(|f| !f.scripts.contains(&own));
     }
     if language == "ar" {
         out.extend(faces.iter().copied().filter(|f| f.style == "Regular" && f.scripts.contains(&"Arab")));
