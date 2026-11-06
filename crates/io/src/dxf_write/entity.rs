@@ -613,8 +613,19 @@ fn write_hatch_entity(w: &mut W, d: &Drawing, e: &Entity, owner: &str, paper: bo
         w.i(70, i64::from(h.solid));
         w.i(71, i64::from(h.associative));
         w.i(91, h.loops.len() as i64);
-        for l in &h.loops {
-            w.i(92, 2 | if l.outer { 1 } else { 0 });
+        // The boundary path type flag follows the DXF Reference's types: external (bit 1) for the
+        // hatch's outer boundary, outermost (bit 16) for the first tier of islands, and the default
+        // type for deeper tiers. The depth comes from the geometry, so an island-in-an-island is
+        // written as a deeper tier rather than another external boundary.
+        let depths = crate::hatch_island::depths(&h.loops);
+        for (i, l) in h.loops.iter().enumerate() {
+            let flags = match depths.as_ref().and_then(|d| d.get(i)) {
+                Some(&depth) => crate::hatch_island::path_flags(depth),
+                // Without a nesting test, at least keep the fill parity: even depth is filled
+                // (external), odd depth is an island (outermost).
+                None => crate::hatch_island::POLYLINE | if l.outer { crate::hatch_island::EXTERNAL } else { crate::hatch_island::OUTERMOST },
+            };
+            w.i(92, flags);
             let has_bulge = l.vertices.iter().any(|v| v.bulge != 0.0);
             w.i(72, i64::from(has_bulge));
             w.i(73, 1);

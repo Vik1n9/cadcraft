@@ -7,6 +7,7 @@ pub(super) fn hatch(tags: &[Tag], t: &T) -> Option<EntityKind> {
     let solid = t.i(70).unwrap_or(0) == 1;
     let n_loops = t.i(91).unwrap_or(0).clamp(0, 100_000) as usize;
     let mut loops = Vec::new();
+    let mut flags = Vec::new();
     // Walk the boundary data after the 91 tag.
     let start = tags.iter().position(|x| x.code == 91).map(|i| i + 1)?;
     let mut i = start;
@@ -16,15 +17,28 @@ pub(super) fn hatch(tags: &[Tag], t: &T) -> Option<EntityKind> {
         while get(i).is_some_and(|x| x.code != 92) {
             i += 1;
         }
-        let flags = get(i)?.i64();
+        let path_flags = get(i)?.i64();
         i += 1;
-        let outer = flags & 1 != 0;
-        let mut verts = if flags & 2 != 0 { polyline_boundary(tags, &mut i)? } else { edge_boundary(tags, &mut i)? };
+        let outer = path_flags & 1 != 0;
+        let mut verts = if path_flags & 2 != 0 { polyline_boundary(tags, &mut i)? } else { edge_boundary(tags, &mut i)? };
         if verts.len() > 1 && verts.first().map(|f| f.p).zip(verts.last().map(|l| l.p)).is_some_and(|(a, b)| a.near(b, 1e-9)) {
             verts.pop();
         }
         let sources = boundary_sources(tags, &mut i);
+        flags.push(path_flags);
         loops.push(HatchLoop { vertices: verts, outer, sources });
+    }
+    // The file's flags decide the fill parity when they carry tier information: an AutoCAD-style
+    // 1/16/0 (external / outermost / default) file keeps the parity its flags describe, even where
+    // the geometry would say otherwise. Only a file with no tier information (the 2/3 pattern of
+    // older CADCraft saves) falls back to the geometry, which also gives an island-in-an-island its
+    // filled tier back.
+    if crate::hatch_island::no_tier_information(&flags)
+        && let Some(depths) = crate::hatch_island::depths(&loops)
+    {
+        for (l, depth) in loops.iter_mut().zip(depths) {
+            l.outer = depth % 2 == 0;
+        }
     }
     let solid = solid || pattern.eq_ignore_ascii_case("SOLID");
     let (scale, angle) = (t.fd(41, 1.0), t.fd(52, 0.0).to_radians());
