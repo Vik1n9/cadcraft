@@ -78,9 +78,9 @@ pub fn read(bytes: &[u8]) -> Result<Drawing> {
 /// flag, entity) and block flags.
 type BlockDef = (String, Vec3, String, Vec<(Option<String>, bool, Entity)>, i64);
 
-/// A layout read from OBJECTS: name, tab order, paper block handle and page setup.
-/// A LAYOUT object: name, tab order, block record, page setup and its limits (groups 10/11).
-type LayoutDef = (String, u32, String, PageSetup, Option<(Vec2, Vec2)>);
+/// A layout read from OBJECTS: name, tab order, paper block handle, page setup, its limits
+/// (groups 10/11) and its own flags (group 70).
+type LayoutDef = (String, u32, String, PageSetup, Option<(Vec2, Vec2)>, u32);
 
 /// Import DXF sections while sharing one materialized-table-cell budget across blocks and entity sections.
 fn read_budgeted(bytes: &[u8], mut table_cells_left: usize) -> Result<Drawing> {

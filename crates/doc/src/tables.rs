@@ -842,6 +842,11 @@ impl Default for PageSetup {
 pub struct Layout {
     pub name: String,
     pub tab_order: u32,
+    /// The layout's own flags (DXF LAYOUT group 70): 1 = PSLTSCALE is on for this layout when it
+    /// is current, 2 = LIMCHECK is on. AutoCAD keeps them per layout; default to 1, the value
+    /// CADCraft always wrote before it read them back.
+    #[serde(default = "default_layout_flags")]
+    pub flags: u32,
     pub page: PageSetup,
     #[serde(skip)]
     pub entities: EntityStore,
@@ -854,9 +859,21 @@ pub struct Layout {
     pub limits: Option<(Vec2, Vec2)>,
 }
 
+fn default_layout_flags() -> u32 {
+    1
+}
+
 impl Layout {
     pub fn new(name: &str, tab_order: u32) -> Self {
-        Layout { name: name.into(), tab_order, page: PageSetup::default(), entities: EntityStore::new(), view: None, limits: None }
+        Layout {
+            name: name.into(),
+            tab_order,
+            flags: default_layout_flags(),
+            page: PageSetup::default(),
+            entities: EntityStore::new(),
+            view: None,
+            limits: None,
+        }
     }
 }
 

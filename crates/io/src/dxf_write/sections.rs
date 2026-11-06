@@ -544,7 +544,7 @@ fn write_layout_objects(w: &mut W, plan: &ObjectWritePlan<'_>) {
                 name: &l.name,
                 tab: i64::from(l.tab_order.max(1)),
                 block_record: brh,
-                flags: 1,
+                flags: i64::from(l.flags),
                 page: &l.page,
                 view: l.view,
                 limits: l.limits,
